@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>LeetCode Viewer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="main-page">
+    <h2>LeetPeek</h2>
+    <div id="data-container">Loading...</div>
+    <button id="refresh-btn">Refresh</button>
+    <button id="settings-btn">Settings</button>
+  </div>
+
+  <div id="settings-page" style="display:none;">
+    <h2>Manage Usernames</h2>
+    <input type="text" id="username-input" placeholder="Enter LeetCode username" />
+    <button id="add-btn">Add</button>
+    <ul id="username-list"></ul>
+    <button id="back-btn">Back</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
