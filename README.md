@@ -1,12 +1,13 @@
 # LeetPeek - LeetCode Stats Extension
 
-**LeetPeek** lets you quickly view detailed LeetCode stats for multiple saved usernames without leaving your browser. Effortlessly add or remove usernames, refresh data, and see solved problem counts by difficulty (easy, medium, hard) plus user rank—all in one minimal popup.
+**LeetPeek** lets you quickly view detailed LeetCode stats for multiple saved usernames without leaving your browser. Effortlessly add or remove usernames, refresh data, and see solved problem counts by difficulty (easy, medium, hard), user rank and last submitted—all in one minimal popup.
 
 ## Features
 
 - **Track Multiple Users**: Save and view stats for multiple LeetCode usernames.
 - **Problem Difficulty Breakdown**: View solved problem counts by difficulty: Easy, Medium, and Hard.
 - **User Rank**: See the current rank of each user on LeetCode.
+- **Last Submitted**: See the last submitted of each user on LeetCode.
 
 ## Installation Instructions
 
@@ -22,7 +23,7 @@ After installation
    - Click **Add** to save the username.
 
 3. **View Stats**: 
-   - In the popup, you’ll see the stats for each saved username, including problem count by difficulty and user rank.
+   - In the popup, you’ll see the stats for each saved username, including problem count by difficulty, user rank and last submitted.
 
 4. **Refresh Stats**: 
    - Click the **Refresh** button to get the latest data from LeetCode.

@@ -68,6 +68,7 @@ async function loadData() {
   dataContainer.textContent = 'Peeking...';
   const { usernames = [] } = await browser.storage.local.get('usernames');
   const response = await browser.runtime.sendMessage({ action: 'fetch', usernames });
+
   if (response && response.users) {
     dataContainer.innerHTML = '';
 
@@ -110,10 +111,49 @@ async function loadData() {
       const rankText = document.createTextNode(`Rank: ${user.rank || 'N/A'}`);
       div.appendChild(rankText);
 
+      if (user.lastSubmission) {
+        div.appendChild(document.createElement('br'));
+
+        const submissionTitle = document.createElement('span');
+        submissionTitle.innerHTML = `<strong>Last Submission</strong>`;
+        div.appendChild(submissionTitle);
+
+        div.appendChild(document.createElement('br'));
+
+        const lang = document.createTextNode(`Language: ${user.lastSubmission.lang}`);
+        div.appendChild(lang);
+
+        div.appendChild(document.createElement('br'));
+
+        const now = Math.floor(Date.now() / 1000); // current UTC timestamp in seconds
+        const last = user.lastSubmission.timestamp ?? 0;
+        let diff = now - last;
+
+        let displayText = "Submitted ∞ Minutes Ago";
+
+        if (last > 0) {
+            let days = 0, hours = 0, minutes = 0;
+
+            if (diff >= 86400) {
+            days = Math.floor(diff / 86400);
+            displayText = `Submitted ${days} Day${days === 1 ? "" : "s"} Ago`;
+            } else if (diff >= 3600) {
+            hours = Math.floor(diff / 3600);
+            displayText = `Submitted ${hours} Hour${hours === 1 ? "" : "s"} Ago`;
+            } else {
+            minutes = Math.floor(diff / 60);
+            displayText = `Submitted ${minutes} Minute${minutes === 1 ? "" : "s"} Ago`;
+            }
+        }
+
+        const submittedText = document.createTextNode(displayText);
+        div.appendChild(submittedText);
+      }
       dataContainer.appendChild(div);
     });
   } else {
     dataContainer.textContent = 'Failed to load data.';
   }
 }
+
 loadData();

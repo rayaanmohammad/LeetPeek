@@ -1,11 +1,12 @@
 {
   "manifest_version": 2,
   "name": "LeetPeek",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Displays stats for saved LeetCode usernames.",
   "permissions": [
   "storage",
-  "https://leetcode-stats-api.herokuapp.com/*"
+  "tabs",
+  "https://leetcode.com/*"
   ],
   "background": {
     "scripts": ["background.js"],
