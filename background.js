@@ -1,24 +1,35 @@
-browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'fetch') {
-    if (!message.usernames || message.usernames.length === 0) {
-      sendResponse({ users: [] });
-      return;
-    }
+const extensionApi = globalThis.browser ?? globalThis.chrome;
 
-    Promise.all(message.usernames.map(fetchLeetCodeProfile))
-      .then(users => sendResponse({ users }))
-      .catch(err => {
-        console.error("Error fetching users:", err);
-        sendResponse({ users: [] });
-      });
-    return true; // Needed to keep sendResponse async
-  }
+extensionApi.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action !== 'fetch') return false;
+
+  const usernames = Array.isArray(message.usernames) ? message.usernames : [];
+  Promise.all(usernames.map(fetchLeetCodeProfile))
+    .then(users => sendResponse({ users }))
+    .catch(error => {
+      console.error('Could not load profiles:', error);
+      sendResponse({ error: 'Could not reach LeetCode.' });
+    });
+
+  return true;
 });
+
+async function queryLeetCode(query, username) {
+  const response = await fetch('https://leetcode.com/graphql', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, variables: { username } })
+  });
+
+  if (!response.ok) throw new Error(`LeetCode returned ${response.status}`);
+  const result = await response.json();
+  if (result.errors?.length) throw new Error(result.errors[0].message);
+  return result.data;
+}
 
 async function fetchLeetCodeProfile(username) {
   try {
-    // Query for profile + stats
-    const profileQuery = `
+    const profile = await queryLeetCode(`
       query getUserProfile($username: String!) {
         matchedUser(username: $username) {
           username
@@ -28,94 +39,57 @@ async function fetchLeetCodeProfile(username) {
               count
             }
           }
-          profile {
-            ranking
+          profile { ranking }
+        }
+      }
+    `, username);
+
+    const matchedUser = profile?.matchedUser;
+    if (!matchedUser) throw new Error('User not found');
+
+    const counts = Object.fromEntries(
+      (matchedUser.submitStats?.acSubmissionNum ?? []).map(item => [item.difficulty, item.count])
+    );
+
+    let lastSubmission = null;
+    try {
+      const submission = await queryLeetCode(`
+        query getRecentSubmission($username: String!) {
+          recentSubmissionList(username: $username, limit: 1) {
+            id
+            title
+            titleSlug
+            timestamp
+            statusDisplay
+            lang
           }
         }
+      `, username);
+      const latest = submission?.recentSubmissionList?.[0];
+      if (latest) {
+        lastSubmission = {
+          title: latest.title,
+          titleSlug: latest.titleSlug,
+          timestamp: Number(latest.timestamp),
+          status: latest.statusDisplay,
+          lang: latest.lang
+        };
       }
-    `;
-
-    const profileRes = await fetch("https://leetcode.com/graphql", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Referer": "https://leetcode.com",
-        "Origin": "https://leetcode.com"
-      },
-      body: JSON.stringify({
-        query: profileQuery,
-        variables: { username }
-      })
-    });
-
-    const profileJson = await profileRes.json();
-    const user = profileJson.data?.matchedUser;
-    if (!user) throw new Error("User not found");
-
-    // Extract solved data
-    let totalSolved = 0, easySolved = 0, mediumSolved = 0, hardSolved = 0;
-    for (let item of user.submitStats.acSubmissionNum) {
-      if (item.difficulty === "All") totalSolved = item.count;
-      if (item.difficulty === "Easy") easySolved = item.count;
-      if (item.difficulty === "Medium") mediumSolved = item.count;
-      if (item.difficulty === "Hard") hardSolved = item.count;
+    } catch (error) {
+      console.warn(`Recent submission unavailable for ${username}:`, error);
     }
 
-    // Query for recent submission separately
-    const submissionQuery = `
-      query {
-        recentSubmissionList(username: "${username}", limit: 1) {
-          id
-          title
-          titleSlug
-          timestamp
-          statusDisplay
-          lang
-        }
-      }
-    `;
-
-    const subRes = await fetch("https://leetcode.com/graphql", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Referer": "https://leetcode.com",
-        "Origin": "https://leetcode.com"
-      },
-      body: JSON.stringify({ query: submissionQuery })
-    });
-
-    const subJson = await subRes.json();
-    const submissions = subJson.data?.recentSubmissionList || [];
-    const lastSubmission = submissions.length > 0 ? submissions[0] : null;
-
     return {
-      username: user.username,
-      solved: totalSolved,
-      rank: user.profile?.ranking ?? "N/A",
-      easySolved,
-      mediumSolved,
-      hardSolved,
-      lastSubmission: lastSubmission ? {
-        title: lastSubmission.title,
-        titleSlug: lastSubmission.titleSlug,
-        timestamp: parseInt(lastSubmission.timestamp),
-        status: lastSubmission.statusDisplay,
-        lang: lastSubmission.lang,
-        id: lastSubmission.id
-      } : null
+      username: matchedUser.username,
+      solved: counts.All ?? null,
+      easySolved: counts.Easy ?? null,
+      mediumSolved: counts.Medium ?? null,
+      hardSolved: counts.Hard ?? null,
+      rank: matchedUser.profile?.ranking ?? null,
+      lastSubmission
     };
-
-  } catch (err) {
-    console.error(`Failed to fetch stats for ${username}:`, err);
-    return {
-      username,
-      solved: 'N/A',
-      rank: 'N/A',
-      easySolved: 'N/A',
-      mediumSolved: 'N/A',
-      hardSolved: 'N/A',
-      lastSubmission: null
-    };
+  } catch (error) {
+    console.error(`Could not load ${username}:`, error);
+    return { username, error: error.message };
   }
 }
